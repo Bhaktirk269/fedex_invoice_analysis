@@ -1,0 +1,6 @@
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+curl "http://127.0.0.1:8000/ups/by-invoice/127100372810?file=ups.txt"
+curl "http://127.0.0.1:8000/ups/summary?file=ups.txt"
+curl "http://127.0.0.1:8000/fedex/by-ref/23903?file=fedex.txt"                                                                
+python parse_fedex_invoice.py fedex.txt --ref 23123
+python parse_ups_invoice.py ups.txt --invoice 
