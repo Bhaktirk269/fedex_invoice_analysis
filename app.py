@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, UploadFile, File
 from pathlib import Path
 import json
 import fitz  # PyMuPDF
 import easyocr
+import tempfile
 
 # Local parsers
 from parse_fedex_invoice import parse_blocks as fedex_parse_blocks
@@ -129,6 +130,30 @@ def ups_by_reference(ref2: str, ref1: str | None = Query(None), file: str = Quer
     text = p.read_text(encoding="utf-8", errors="ignore")
     return ups_by_reference_parser(text, ref2=ref2, ref1=ref1)
 
+
+
+@app.post("/ups/upload")
+async def ups_upload(file: UploadFile = File(...), dpi: int = Query(200)):
+    """Upload a UPS invoice PDF and return all parsed shipment details as JSON.
+
+    This keeps existing endpoints unchanged and adds a convenient upload flow.
+    """
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            tmp_path = Path(tmp.name)
+        text = ocr_pdf_to_text(tmp_path, dpi=dpi)
+        records = ups_parse(text)
+        summary = ups_parse_summary(text)
+        return {"summary": summary, "records": records}
+    finally:
+        if tmp_path and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
 
 @app.get("/ups/by-reference-ocr")
 def ups_by_reference_ocr(ref2: str, ref1: str | None = Query(None), pdf_file: str = Query("ups_invoice.pdf")):
