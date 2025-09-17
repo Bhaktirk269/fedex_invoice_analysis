@@ -63,6 +63,14 @@ def fedex_by_reference(reference: str, file: str = Query("fedex.txt")):
     return match[0] if len(match) == 1 else match
 
 
+@app.get("/fedex/all")
+def fedex_all(file: str = Query("fedex.txt")):
+    p = Path(file)
+    text = p.read_text(encoding="utf-8", errors="ignore")
+    blocks = list(fedex_parse_blocks(text))
+    return blocks
+
+
 @app.get("/ups/summary")
 def ups_summary(file: str = Query("ups.txt")):
     p = Path(file)
@@ -148,6 +156,25 @@ async def ups_upload(file: UploadFile = File(...), dpi: int = Query(200)):
         records = ups_parse(text)
         summary = ups_parse_summary(text)
         return {"summary": summary, "records": records}
+    finally:
+        if tmp_path and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+@app.post("/fedex/upload")
+async def fedex_upload(file: UploadFile = File(...), dpi: int = Query(200)):
+    """Upload a FedEx invoice PDF and return all parsed shipment blocks as JSON."""
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            tmp_path = Path(tmp.name)
+        text = ocr_pdf_to_text(tmp_path, dpi=dpi)
+        blocks = list(fedex_parse_blocks(text))
+        return blocks
     finally:
         if tmp_path and tmp_path.exists():
             try:
