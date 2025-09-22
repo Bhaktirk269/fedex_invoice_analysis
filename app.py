@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import json
 import fitz  # PyMuPDF
@@ -16,6 +17,15 @@ from parse_ups_invoice import (
 
 
 app = FastAPI(title="Invoice Parser API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific domains
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 _easyocr_reader = None
